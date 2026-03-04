@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 
-const LAUNCH_API_URL = "https://https://eil6evmh6l.execute-api.us-east-1.amazonaws.com/launch";
-const STATUS_API_URL = "https://https://eil6evmh6l.execute-api.us-east-1.amazonaws.com/status"; 
+const LAUNCH_API_URL = "https://lpe0z1vu8l.execute-api.us-east-1.amazonaws.com/launch";
+const STATUS_API_URL = "https://lpe0z1vu8l.execute-api.us-east-1.amazonaws.com/status"; 
 
 const STAGES = [
   { id: "idle",       label: "Ready to launch" },
