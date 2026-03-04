@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GPU Session Launcher</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #060b14; font-family: 'DM Sans', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    @keyframes ping { 0% { transform: scale(1); opacity: 0.4; } 75%,100% { transform: scale(2); opacity: 0; } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes glow { 0%,100% { opacity:0.5; } 50% { opacity:1; } }
+    .card { width: 100%; max-width: 480px; animation: fadeIn 0.6s ease forwards; }
+    .badge { text-align: center; margin-bottom: 32px; }
+    .badge-inner { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; background: #0d1424; border: 1px solid #1e293b; border-radius: 99px; font-size: 11px; color: #64748b; font-family: 'DM Mono', monospace; letter-spacing: 0.08em; }
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #f97316; animation: glow 2s ease infinite; }
+    .main-card { background: #0a1020; border: 1px solid #1e293b; border-radius: 20px; overflow: hidden; box-shadow: 0 24px 80px #00000080; }
+    .card-header { padding: 32px 32px 24px; border-bottom: 1px solid #1e293b; background: linear-gradient(135deg, #0d1424 0%, #0a1020 100%); }
+    .card-header h1 { font-size: 26px; font-weight: 700; color: #f1f5f9; letter-spacing: -0.03em; margin-bottom: 8px; }
+    .card-header p { font-size: 14px; color: #475569; line-height: 1.6; }
+    .card-body { padding: 28px 32px 32px; }
+    .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 28px; }
+    .stat { padding: 12px; background: #0d1424; border: 1px solid #1e293b; border-radius: 10px; text-align: center; }
+    .stat-val { font-size: 15px; font-weight: 700; color: #f1f5f9; font-family: 'DM Mono', monospace; }
+    .stat-label { font-size: 10px; color: #475569; margin-top: 3px; letter-spacing: 0.06em; }
+    .launch-btn { width: 100%; padding: 16px; background: linear-gradient(135deg, #ea580c, #f97316); color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; letter-spacing: -0.01em; box-shadow: 0 8px 32px #f9731640; transition: transform 0.15s, box-shadow 0.15s; font-family: 'DM Sans', sans-serif; }
+    .launch-btn:hover { transform: translateY(-1px); box-shadow: 0 12px 40px #f9731660; }
+    .progress-bar-wrap { width: 100%; height: 3px; background: #1e293b; border-radius: 99px; overflow: hidden; margin: 32px 0 8px; }
+    .progress-bar { height: 100%; border-radius: 99px; transition: width 2s cubic-bezier(0.4,0,0.2,1); box-shadow: 0 0 12px #f9731688; }
+    .status-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    .status-label { display: flex; align-items: center; font-size: 13px; font-weight: 600; color: #f1f5f9; }
+    .pulse-wrap { position: relative; display: inline-flex; width: 10px; height: 10px; margin-right: 8px; }
+    .pulse-ring { position: absolute; inset: 0; border-radius: 50%; background: #f97316; opacity: 0.4; animation: ping 1.2s cubic-bezier(0,0,0.2,1) infinite; }
+    .pulse-dot { position: absolute; inset: 2px; border-radius: 50%; background: #f97316; }
+    .timer { font-size: 12px; color: #475569; font-family: 'DM Mono', monospace; }
+    .est { font-size: 11px; color: #334155; font-family: 'DM Mono', monospace; text-align: right; margin-bottom: 20px; }
+    .log-box { background: #060b14; border: 1px solid #1e293b; border-radius: 10px; padding: 14px 16px; min-height: 80px; }
+    .log-line { font-size: 12px; color: #475569; font-family: 'DM Mono', monospace; padding: 3px 0; display: flex; gap: 10px; }
+    .log-arrow { color: #1e3a5f; }
+    .spinner-wrap { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+    .spinner { width: 10px; height: 10px; border: 2px solid #f97316; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+    .spinner-text { font-size: 11px; color: #334155; font-family: 'DM Mono', monospace; }
+    .ready-box { padding: 20px; background: #052e16; border: 1px solid #166534; border-radius: 12px; text-align: center; margin-bottom: 16px; }
+    .ready-emoji { font-size: 28px; margin-bottom: 8px; }
+    .ready-title { font-size: 15px; font-weight: 700; color: #22c55e; margin-bottom: 4px; }
+    .ready-sub { font-size: 12px; color: #4ade80; margin-bottom: 20px; }
+    .open-btn { display: inline-block; padding: 12px 28px; background: #22c55e; color: #fff; border-radius: 10px; text-decoration: none; font-size: 14px; font-weight: 700; box-shadow: 0 8px 24px #22c55e40; }
+    .error-box { padding: 18px; background: #1a0a0a; border: 1px solid #7f1d1d; border-radius: 12px; margin-bottom: 14px; text-align: center; }
+    .error-title { font-size: 14px; font-weight: 600; color: #f87171; margin-bottom: 6px; }
+    .error-msg { font-size: 12px; color: #b91c1c; }
+    .retry-btn { width: 100%; padding: 14px; background: #1e293b; color: #f1f5f9; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+    .footer { text-align: center; font-size: 11px; color: #1e293b; margin-top: 20px; font-family: 'DM Mono', monospace; }
+    #another-btn { width: 100%; padding: 10px; background: transparent; color: #475569; border: 1px solid #1e293b; border-radius: 8px; font-size: 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; margin-top: 12px; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="badge">
+    <div class="badge-inner">
+      <span class="badge-dot"></span>
+      AWS EC2 · g6.2xlarge · 1× L4 24GB
+    </div>
+  </div>
+
+  <div class="main-card">
+    <div class="card-header">
+      <h1>GPU Session</h1>
+      <p>A private GPU instance will be spun up exclusively for you. Takes about 5–8 minutes to be ready.</p>
+    </div>
+
+    <div class="card-body">
+      <div class="stats">
+        <div class="stat"><div class="stat-val">L4 24GB</div><div class="stat-label">GPU</div></div>
+        <div class="stat"><div class="stat-val">32 GB</div><div class="stat-label">RAM</div></div>
+        <div class="stat"><div class="stat-val">8</div><div class="stat-label">vCPUs</div></div>
+      </div>
+
+      <!-- IDLE STATE -->
+      <div id="state-idle">
+        <button class="launch-btn" onclick="handleLaunch()">Launch My GPU Session →</button>
+      </div>
+
+      <!-- ACTIVE STATE -->
+      <div id="state-active" style="display:none;">
+        <div class="status-row">
+          <div class="status-label">
+            <div class="pulse-wrap"><div class="pulse-ring"></div><div class="pulse-dot"></div></div>
+            <span id="status-text">Requesting GPU instance...</span>
+          </div>
+          <div class="timer" id="timer-text">0:00</div>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" id="progress-bar" style="width:0%; background: linear-gradient(90deg,#f97316,#fb923c);"></div>
+        </div>
+        <div class="est" id="est-text">~10s estimated</div>
+        <div class="log-box" id="log-box"></div>
+      </div>
+
+      <!-- READY STATE -->
+      <div id="state-ready" style="display:none;">
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" style="width:100%; background:#22c55e; box-shadow: 0 0 12px #22c55e88;"></div>
+        </div>
+        <div class="ready-box">
+          <div class="ready-emoji">🚀</div>
+          <div class="ready-title">Your session is live!</div>
+          <div class="ready-sub" id="ready-sub">Auto-shuts down when idle</div>
+          <a id="open-link" href="#" target="_blank" class="open-btn">Open My Session →</a>
+        </div>
+        <button id="another-btn" onclick="handleReset()">Launch another session</button>
+      </div>
+
+      <!-- ERROR STATE -->
+      <div id="state-error" style="display:none;">
+        <div class="error-box">
+          <div style="font-size:24px;margin-bottom:8px;">⚠️</div>
+          <div class="error-title">Launch failed</div>
+          <div class="error-msg" id="error-msg"></div>
+        </div>
+        <button class="retry-btn" onclick="handleReset()">Try Again</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="footer">Session is private to you · Instance auto-terminates on idle</div>
+</div>
+
+<script>
+  // ── REPLACE THESE WITH YOUR API GATEWAY URLs ──
+  const LAUNCH_API_URL = "https://lpe0z1vu8l.execute-api.us-east-1.amazonaws.com/launch";
+  const STATUS_API_URL  = "https://lpe0z1vu8l.execute-api.us-east-1.amazonaws.com/status";
+  // ─────────────────────────────────────────────
+
+  let timerInterval = null;
+  let pollInterval  = null;
+  let elapsed       = 0;
+  let sessionId     = null;
+
+  function show(stateId) {
+    ["idle","active","ready","error"].forEach(s => {
+      document.getElementById("state-" + s).style.display = s === stateId ? "block" : "none";
+    });
+  }
+
+  function addLog(text) {
+    const box  = document.getElementById("log-box");
+    const line = document.createElement("div");
+    line.className = "log-line";
+    line.innerHTML = '<span class="log-arrow">›</span><span>' + text + '</span>';
+    box.appendChild(line);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function setProgress(pct, status) {
+    const bar = document.getElementById("progress-bar");
+    bar.style.width = pct + "%";
+    if (status === "ready") {
+      bar.style.background = "#22c55e";
+      bar.style.boxShadow  = "0 0 12px #22c55e88";
+    }
+  }
+
+  function startTimer() {
+    elapsed = 0;
+    timerInterval = setInterval(() => {
+      elapsed++;
+      const m = Math.floor(elapsed / 60);
+      const s = String(elapsed % 60).padStart(2, "0");
+      document.getElementById("timer-text").textContent = m + ":" + s;
+    }, 1000);
+  }
+
+  function stopTimer() { clearInterval(timerInterval); }
+  function stopPoll()  { clearInterval(pollInterval); }
+
+  function formatElapsed() {
+    const m = Math.floor(elapsed / 60);
+    const s = String(elapsed % 60).padStart(2, "0");
+    return m + ":" + s;
+  }
+
+  async function handleLaunch() {
+    show("active");
+    startTimer();
+    addLog("Sending launch request to AWS...");
+    setProgress(10, "launching");
+    document.getElementById("status-text").textContent = "Requesting GPU instance...";
+    document.getElementById("est-text").textContent = "~10s estimated";
+
+    // Add spinner
+    const spinner = document.createElement("div");
+    spinner.className = "spinner-wrap";
+    spinner.id = "spinner";
+    spinner.innerHTML = '<div class="spinner"></div><span class="spinner-text">processing...</span>';
+    document.getElementById("log-box").appendChild(spinner);
+
+    try {
+      const res  = await fetch(LAUNCH_API_URL, { method: "POST" });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || "Launch failed");
+
+      sessionId = data.sessionId;
+      addLog("Instance ID: " + data.instanceId);
+      addLog("Waiting for boot sequence...");
+      setProgress(25, "booting");
+      document.getElementById("status-text").textContent = "Instance booting...";
+      document.getElementById("est-text").textContent = "~5 min estimated";
+
+      pollInterval = setInterval(pollStatus, 8000);
+
+    } catch (e) {
+      stopTimer();
+      document.getElementById("error-msg").textContent = e.message;
+      show("error");
+    }
+  }
+
+  async function pollStatus() {
+    try {
+      const res  = await fetch(STATUS_API_URL + "?sessionId=" + sessionId);
+      const data = await res.json();
+
+      if (data.status === "booting") {
+        setProgress(35, "booting");
+        document.getElementById("status-text").textContent = "Instance booting...";
+      } else if (data.status === "pulling") {
+        setProgress(65, "pulling");
+        document.getElementById("status-text").textContent = "Loading your environment...";
+        document.getElementById("est-text").textContent = "~3 min estimated";
+        addLog("Pulling GPU environment from registry...");
+      } else if (data.status === "ready") {
+        stopTimer();
+        stopPoll();
+        setProgress(100, "ready");
+        document.getElementById("open-link").href = data.url;
+        document.getElementById("ready-sub").textContent = "Ready in " + formatElapsed() + " · Auto-shuts down when idle";
+        show("ready");
+      } else if (data.status === "error") {
+        stopTimer();
+        stopPoll();
+        document.getElementById("error-msg").textContent = data.message || "Instance failed to start.";
+        show("error");
+      }
+    } catch (e) {
+      // keep polling on network blips
+    }
+  }
+
+  function handleReset() {
+    stopTimer();
+    stopPoll();
+    elapsed   = 0;
+    sessionId = null;
+    document.getElementById("log-box").innerHTML = "";
+    document.getElementById("timer-text").textContent = "0:00";
+    show("idle");
+  }
+</script>
+</body>
+</html>
