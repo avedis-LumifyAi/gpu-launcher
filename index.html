@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GPU Session Launcher</title>
+  <title>Lumify Launcher</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -54,6 +54,15 @@
     .retry-btn { width: 100%; padding: 14px; background: #1e293b; color: #f1f5f9; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; }
     .footer { text-align: center; font-size: 11px; color: #1e293b; margin-top: 20px; font-family: 'DM Mono', monospace; }
     #another-btn { width: 100%; padding: 10px; background: transparent; color: #475569; border: 1px solid #1e293b; border-radius: 8px; font-size: 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; margin-top: 12px; }
+    .terms-box { background: #060b14; border: 1px solid #1e293b; border-radius: 10px; padding: 14px 16px; height: 160px; overflow-y: scroll; margin-bottom: 14px; font-size: 11px; color: #475569; line-height: 1.7; }
+    .terms-box h4 { color: #94a3b8; font-size: 12px; font-weight: 600; margin-bottom: 8px; letter-spacing: 0.04em; }
+    .terms-box p { margin-bottom: 8px; }
+    .terms-box strong { color: #64748b; }
+    .checkbox-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 16px; cursor: pointer; }
+    .checkbox-row input[type=checkbox] { width: 16px; height: 16px; margin-top: 2px; accent-color: #f97316; cursor: pointer; flex-shrink: 0; }
+    .checkbox-label { font-size: 12px; color: #475569; line-height: 1.5; }
+    .checkbox-label a { color: #f97316; text-decoration: none; }
+    .launch-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
   </style>
 </head>
 <body>
@@ -68,7 +77,7 @@
 
   <div class="main-card">
     <div class="card-header">
-      <h1>GPU Session</h1>
+      <h1>Lumify Launcher</h1>
       <p>A private GPU instance will be spun up exclusively for you. Takes about 5–8 minutes to be ready.</p>
     </div>
 
@@ -80,7 +89,33 @@
       </div>
 
       <div id="state-idle">
-        <button class="launch-btn" onclick="handleLaunch()">Launch My GPU Session →</button>
+        <div class="terms-box">
+          <h4>NON-DISCLOSURE AGREEMENT &amp; RELEASE OF LIABILITY</h4>
+          <p><strong>LumifyAI Inc.</strong> ("Company") · Last updated: March 2026</p>
+
+          <p><strong>1. Non-Disclosure Agreement.</strong> By accessing this GPU session, you ("User") agree that all software, models, algorithms, workflows, outputs, and any other materials made available through this platform (collectively, "Confidential Information") are the exclusive proprietary property of LumifyAI Inc. You agree not to copy, reproduce, distribute, reverse engineer, decompile, disassemble, or otherwise attempt to derive the source code or underlying structure of any Confidential Information. You agree to keep all Confidential Information strictly confidential and not to disclose it to any third party without the prior written consent of LumifyAI Inc.</p>
+
+          <p><strong>2. Permitted Use.</strong> Access to this platform is granted solely for authorized, lawful purposes as expressly permitted by LumifyAI Inc. Any unauthorized use, including but not limited to scraping, automated access, or use for competitive intelligence, is strictly prohibited.</p>
+
+          <p><strong>3. Release of Liability.</strong> To the fullest extent permitted by applicable law, User hereby releases, waives, and forever discharges LumifyAI Inc., its officers, directors, employees, agents, and successors from any and all claims, damages, losses, costs, or expenses of any kind arising out of or related to User's access to or use of this platform, including but not limited to: (a) loss of data; (b) interruption of service; (c) errors or inaccuracies in outputs; (d) any reliance placed on materials provided through the platform.</p>
+
+          <p><strong>4. No Warranty.</strong> This platform is provided "as is" without warranty of any kind, express or implied. LumifyAI Inc. makes no representations regarding the accuracy, reliability, or completeness of any outputs generated through this platform.</p>
+
+          <p><strong>5. Limitation of Liability.</strong> In no event shall LumifyAI Inc. be liable for any indirect, incidental, special, consequential, or punitive damages arising out of or related to your use of this platform, even if advised of the possibility of such damages. LumifyAI Inc.'s total liability shall not exceed the amount paid by User for access to the platform in the twelve (12) months preceding the claim.</p>
+
+          <p><strong>6. Governing Law.</strong> This Agreement shall be governed by and construed in accordance with the laws of the State of Delaware, without regard to its conflict of law provisions. Any disputes arising hereunder shall be resolved exclusively in the courts located in Delaware.</p>
+
+          <p><strong>7. Entire Agreement.</strong> This Agreement constitutes the entire agreement between the parties with respect to its subject matter and supersedes all prior agreements, representations, and understandings.</p>
+
+          <p>By checking the box below and clicking "Launch My GPU Session," you acknowledge that you have read, understood, and agree to be bound by the terms of this Non-Disclosure Agreement and Release of Liability.</p>
+        </div>
+
+        <label class="checkbox-row">
+          <input type="checkbox" id="terms-checkbox" onchange="toggleLaunchBtn()" />
+          <span class="checkbox-label">I have read and agree to the <strong>Non-Disclosure Agreement and Release of Liability</strong> of LumifyAI Inc. I understand that all platform content is confidential and proprietary.</span>
+        </label>
+
+        <button class="launch-btn" id="launch-btn" onclick="handleLaunch()" disabled>Launch Lumify AI →</button>
       </div>
 
       <div id="state-active" style="display:none;">
@@ -282,6 +317,11 @@
     } catch (e) {
       // keep polling
     }
+  }
+
+  function toggleLaunchBtn() {
+    const checked = document.getElementById("terms-checkbox").checked;
+    document.getElementById("launch-btn").disabled = !checked;
   }
 
   function handleReset() {
