@@ -47,6 +47,7 @@
     .ready-title { font-size: 15px; font-weight: 700; color: #22c55e; margin-bottom: 4px; }
     .ready-sub { font-size: 12px; color: #4ade80; margin-bottom: 20px; }
     .open-btn { display: inline-block; padding: 12px 28px; background: #22c55e; color: #fff; border-radius: 10px; text-decoration: none; font-size: 14px; font-weight: 700; box-shadow: 0 8px 24px #22c55e40; }
+    .heartbeat-status { font-size: 11px; color: #334155; font-family: 'DM Mono', monospace; text-align: center; margin-top: 10px; }
     .error-box { padding: 18px; background: #1a0a0a; border: 1px solid #7f1d1d; border-radius: 12px; margin-bottom: 14px; text-align: center; }
     .error-title { font-size: 14px; font-weight: 600; color: #f87171; margin-bottom: 6px; }
     .error-msg { font-size: 12px; color: #b91c1c; }
@@ -78,12 +79,10 @@
         <div class="stat"><div class="stat-val">8</div><div class="stat-label">vCPUs</div></div>
       </div>
 
-      <!-- IDLE STATE -->
       <div id="state-idle">
         <button class="launch-btn" onclick="handleLaunch()">Launch My GPU Session →</button>
       </div>
 
-      <!-- ACTIVE STATE -->
       <div id="state-active" style="display:none;">
         <div class="status-row">
           <div class="status-label">
@@ -99,7 +98,6 @@
         <div class="log-box" id="log-box"></div>
       </div>
 
-      <!-- READY STATE -->
       <div id="state-ready" style="display:none;">
         <div class="progress-bar-wrap">
           <div class="progress-bar" style="width:100%; background:#22c55e; box-shadow: 0 0 12px #22c55e88;"></div>
@@ -110,10 +108,10 @@
           <div class="ready-sub" id="ready-sub">Auto-shuts down when idle</div>
           <a id="open-link" href="#" target="_blank" class="open-btn">Open My Session →</a>
         </div>
+        <div class="heartbeat-status" id="heartbeat-status">● session active</div>
         <button id="another-btn" onclick="handleReset()">Launch another session</button>
       </div>
 
-      <!-- ERROR STATE -->
       <div id="state-error" style="display:none;">
         <div class="error-box">
           <div style="font-size:24px;margin-bottom:8px;">⚠️</div>
@@ -126,19 +124,19 @@
     </div>
   </div>
 
-  <div class="footer">Session is private to you · Instance auto-terminates on idle</div>
+  <div class="footer">Session is private to you · Terminates 5 min after you close this tab</div>
 </div>
 
 <script>
-  // ── REPLACE THESE WITH YOUR API GATEWAY URLs ──
-  const LAUNCH_API_URL = "https://lpe0z1vu8l.execute-api.us-east-1.amazonaws.com/launch";
-  const STATUS_API_URL  = "https://lpe0z1vu8l.execute-api.us-east-1.amazonaws.com/status";
-  // ─────────────────────────────────────────────
+  const LAUNCH_API_URL    = "https://lpe0z1vu8l.execute-api.us-east-1.amazonaws.com/launch";
+  const STATUS_API_URL    = "https://lpe0z1vu8l.execute-api.us-east-1.amazonaws.com/status";
+  const HEARTBEAT_API_URL = "https://lpe0z1vu8l.execute-api.us-east-1.amazonaws.com/heartbeat";
 
-  let timerInterval = null;
-  let pollInterval  = null;
-  let elapsed       = 0;
-  let sessionId     = null;
+  let timerInterval     = null;
+  let pollInterval      = null;
+  let heartbeatInterval = null;
+  let elapsed           = 0;
+  let sessionId         = null;
 
   function show(stateId) {
     ["idle","active","ready","error"].forEach(s => {
@@ -177,6 +175,42 @@
   function stopTimer() { clearInterval(timerInterval); }
   function stopPoll()  { clearInterval(pollInterval); }
 
+  function startHeartbeat() {
+    // Send immediately then every 30 seconds
+    sendHeartbeat();
+    heartbeatInterval = setInterval(sendHeartbeat, 30000);
+
+    // Also send on tab close / navigation away
+    window.addEventListener("beforeunload", sendHeartbeatSync);
+  }
+
+  function stopHeartbeat() {
+    clearInterval(heartbeatInterval);
+    window.removeEventListener("beforeunload", sendHeartbeatSync);
+  }
+
+  async function sendHeartbeat() {
+    if (!sessionId) return;
+    try {
+      await fetch(HEARTBEAT_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId })
+      });
+      const now = new Date().toLocaleTimeString();
+      document.getElementById("heartbeat-status").textContent = "● session active · last ping " + now;
+    } catch (e) {
+      // silently ignore heartbeat failures
+    }
+  }
+
+  // Synchronous version for beforeunload — fetch may not complete async
+  function sendHeartbeatSync() {
+    if (!sessionId) return;
+    // Use sendBeacon for reliable tab-close delivery
+    navigator.sendBeacon(HEARTBEAT_API_URL, JSON.stringify({ sessionId }));
+  }
+
   function formatElapsed() {
     const m = Math.floor(elapsed / 60);
     const s = String(elapsed % 60).padStart(2, "0");
@@ -191,7 +225,6 @@
     document.getElementById("status-text").textContent = "Requesting GPU instance...";
     document.getElementById("est-text").textContent = "~10s estimated";
 
-    // Add spinner
     const spinner = document.createElement("div");
     spinner.className = "spinner-wrap";
     spinner.id = "spinner";
@@ -201,7 +234,6 @@
     try {
       const res  = await fetch(LAUNCH_API_URL, { method: "POST" });
       const data = await res.json();
-
       if (!res.ok) throw new Error(data.error || "Launch failed");
 
       sessionId = data.sessionId;
@@ -238,8 +270,9 @@
         stopPoll();
         setProgress(100, "ready");
         document.getElementById("open-link").href = data.url;
-        document.getElementById("ready-sub").textContent = "Ready in " + formatElapsed() + " · Auto-shuts down when idle";
+        document.getElementById("ready-sub").textContent = "Ready in " + formatElapsed() + " · Terminates 5 min after tab close";
         show("ready");
+        startHeartbeat();
       } else if (data.status === "error") {
         stopTimer();
         stopPoll();
@@ -247,13 +280,14 @@
         show("error");
       }
     } catch (e) {
-      // keep polling on network blips
+      // keep polling
     }
   }
 
   function handleReset() {
     stopTimer();
     stopPoll();
+    stopHeartbeat();
     elapsed   = 0;
     sessionId = null;
     document.getElementById("log-box").innerHTML = "";
